@@ -59,6 +59,7 @@ impl<C: AsRef<Channel> + Process> IOResource<C> {
     fn poll_internal(&mut self, ctx: &mut task::Context<'_>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let c: &Channel = (*self.connection).as_ref();
 
+        // println!("Poll_internal start");
         c.read_write(Some(Default::default())).map_err(|_| Error::new_failed("Read/write failed"))?;
         self.connection.process_all();
 
@@ -76,12 +77,18 @@ impl<C: AsRef<Channel> + Process> IOResource<C> {
             },
         };
 
-        r.take_read_ready()?;
-        r.take_write_ready()?;
+        if w.read {
+            let _ = r.poll_read_ready(ctx)?;
+        } else {
+            r.take_read_ready()?;
+        }
+        if w.write {
+            let _ = r.poll_write_ready(ctx)?;
+        } else {
+            r.take_write_ready()?;
+        }
 
-        if w.read { let _ = r.poll_read_ready(ctx)?; };
-        if w.write { let _ = r.poll_write_ready(ctx)?; };
-
+        // println!("Poll_internal end {:?}", w);
         Ok(())
     }
 }
